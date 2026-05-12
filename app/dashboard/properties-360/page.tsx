@@ -29,6 +29,7 @@ type Image360Row = {
 
 type NewProperty = {
   title: string;
+  show_title: boolean;
   thumbnailFile: File | null;
   thumbnailPreview: string | null;
   external_url: string;
@@ -36,6 +37,7 @@ type NewProperty = {
 
 const EMPTY_PROP: NewProperty = {
   title: "",
+  show_title: true,
   thumbnailFile: null,
   thumbnailPreview: null,
   external_url: "",
@@ -144,6 +146,7 @@ export default function Properties360Page() {
       .from("properties_360")
       .insert({
         title: newProp.title,
+        show_title: newProp.show_title,
         thumbnail_url,
         external_url: newProp.external_url || null,
         position: properties.length,
@@ -415,13 +418,28 @@ export default function Properties360Page() {
             </p>
 
             <div className="space-y-1.5">
-              <Label className="text-white/60 text-xs">Título do imóvel</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/60 text-xs">Título do imóvel</Label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span className="text-white/40 text-xs">Exibir título no card</span>
+                  <button
+                    type="button"
+                    onClick={() => setNewProp((p) => ({ ...p, show_title: !p.show_title }))}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${newProp.show_title ? "bg-[#B8966E]" : "bg-white/10"}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${newProp.show_title ? "translate-x-4" : "translate-x-1"}`} />
+                  </button>
+                </label>
+              </div>
               <Input
                 value={newProp.title}
                 onChange={(e) => setNewProp((p) => ({ ...p, title: e.target.value }))}
                 placeholder="Ex: Casa Country Iguaçu"
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus-visible:ring-[#B8966E]"
               />
+              {!newProp.show_title && (
+                <p className="text-white/30 text-xs">O título será salvo mas não aparecerá no card da landing page.</p>
+              )}
             </div>
 
             <div className="space-y-1.5">

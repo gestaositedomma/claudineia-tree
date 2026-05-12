@@ -21,7 +21,7 @@ async function getProperties360() {
     const supabase = await createClient();
     const { data } = await supabase
       .from("properties_360")
-      .select("id, title, thumbnail_url, external_url, property_360_images(id, image_url, label, position)")
+      .select("id, title, show_title, thumbnail_url, external_url, property_360_images(id, image_url, label, position)")
       .eq("active", true)
       .order("position");
     return data ?? [];

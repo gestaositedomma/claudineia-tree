@@ -12,6 +12,7 @@ type Image360 = {
 type Property360 = {
   id: string;
   title: string;
+  show_title: boolean;
   thumbnail_url: string | null;
   external_url: string | null;
   property_360_images: Image360[];
@@ -150,7 +151,9 @@ export function Property360Section({
                 </div>
 
                 <div className="video-info">
-                  <span className="video-info-title">{p.title}</span>
+                  {p.show_title !== false && (
+                    <span className="video-info-title">{p.title}</span>
+                  )}
                   <span className="video-info-cta" style={{ color: "#B8966E" }}>
                     {count > 1
                       ? `VER ${count} AMBIENTES`
