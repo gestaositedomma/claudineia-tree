@@ -141,7 +141,12 @@ export default function ContentPage() {
     let mp4_url: string | null = null;
 
     if (newVideo.mp4File) {
-      const path = `${Date.now()}-${newVideo.title.replace(/\s+/g, "-").toLowerCase()}.mp4`;
+      const safeName = newVideo.title
+        .normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-z0-9\s-]/gi, "")
+        .replace(/\s+/g, "-")
+        .toLowerCase();
+      const path = `${Date.now()}-${safeName}.mp4`;
       const { error: upErr } = await supabase.storage.from("videos").upload(path, newVideo.mp4File, { contentType: "video/mp4" });
       if (upErr) { setUploadError("Erro ao enviar vídeo: " + upErr.message); setUploading(false); return; }
       const { data: pub } = supabase.storage.from("videos").getPublicUrl(path);
