@@ -13,11 +13,13 @@ import {
   Flame,
   LogOut,
   ExternalLink,
+  RotateCw,
 } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/content", label: "Conteúdo (CMS)", icon: FileText },
+  { href: "/dashboard/properties-360", label: "Imóveis 360°", icon: RotateCw },
   { href: "/dashboard/clicks", label: "Cliques", icon: MousePointerClick },
   { href: "/dashboard/heatmap", label: "Mapa de Calor", icon: Flame },
   { href: "/dashboard/users", label: "Usuários", icon: Users, adminOnly: true },

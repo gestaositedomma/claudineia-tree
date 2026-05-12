@@ -4,6 +4,7 @@ import { PageViewTracker } from "@/components/landing/PageViewTracker";
 import { TrackedLink } from "@/components/landing/TrackedLink";
 import { LandingScripts } from "@/components/landing/LandingScripts";
 import { VideoScrollSection } from "@/components/landing/VideoScrollSection";
+import { Property360Section } from "@/components/landing/Property360Section";
 
 async function getContent() {
   try {
@@ -13,6 +14,18 @@ async function getContent() {
     data?.forEach((row) => { map[`${row.section}.${row.key}`] = row.value ?? ""; });
     return map;
   } catch { return {} as Record<string, string>; }
+}
+
+async function getProperties360() {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("properties_360")
+      .select("id, title, thumbnail_url, external_url, property_360_images(id, image_url, label, position)")
+      .eq("active", true)
+      .order("position");
+    return data ?? [];
+  } catch { return []; }
 }
 
 async function getVideos() {
@@ -68,8 +81,8 @@ const PLATFORM_BADGE: Record<string, { label: string; cta: string; color: string
 };
 
 export default async function LandingPage() {
-  const [content, videos, integrations] = await Promise.all([
-    getContent(), getVideos(), getIntegrations()
+  const [content, videos, properties360, integrations] = await Promise.all([
+    getContent(), getVideos(), getProperties360(), getIntegrations()
   ]);
 
   const whatsapp = c(content, "links.whatsapp_number", "5545999731581");
@@ -304,6 +317,23 @@ export default async function LandingPage() {
             </div>{/* video-grid */}
             </VideoScrollSection>
           </section>
+
+          {/* ── IMÓVEIS 360° ── */}
+          {properties360.length > 0 && (
+            <section className="section-360" style={{ marginTop: 8 }}>
+              <div className="section-header">
+                <div className="section-header-line" />
+                <div className="section-header-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" style={{ width: 14, height: 14 }}>
+                    <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="section-title">imóveis em 360°</span>
+                </div>
+                <div className="section-header-line" />
+              </div>
+              <Property360Section properties={properties360} />
+            </section>
+          )}
 
           {/* ── E-MAIL ── */}
           <div style={{ width: "100%", padding: "0 16px 0" }}>
