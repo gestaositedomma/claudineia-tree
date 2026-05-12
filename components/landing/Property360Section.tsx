@@ -58,36 +58,53 @@ export function Property360Section({
 
   const currentImage = activeProperty?.property_360_images?.[activeIdx];
 
-  // Inicia/atualiza o viewer quando a imagem muda
+  // Inicia/atualiza o viewer quando a imagem muda — com retry automático
   useEffect(() => {
     if (!currentImage?.image_url) return;
 
-    function init() {
-      if (!window.pannellum || !viewerRef.current) return;
-      try { pannellumRef.current?.destroy(); } catch { /* ignorar */ }
-      viewerRef.current.innerHTML = "";
-      pannellumRef.current = window.pannellum.viewer(viewerRef.current, {
-        type: "equirectangular",
-        panorama: currentImage!.image_url,
-        autoLoad: true,
-        autoRotate: -2,
-        compass: false,
-        showControls: false,
-        hfov: 100,
-        minHfov: 50,
-        maxHfov: 120,
-      });
+    let cancelled = false;
+    const imageUrl = currentImage.image_url;
+
+    // Destrói instância anterior de forma segura
+    try { pannellumRef.current?.destroy(); } catch { /* ignorar */ }
+    pannellumRef.current = null;
+    if (viewerRef.current) viewerRef.current.innerHTML = "";
+
+    function tryInit(attempt: number) {
+      if (cancelled) return;
+      if (!viewerRef.current) { if (attempt < 20) setTimeout(() => tryInit(attempt + 1), 100); return; }
+      if (!window.pannellum)  { if (attempt < 20) setTimeout(() => tryInit(attempt + 1), 100); return; }
+
+      try {
+        viewerRef.current.innerHTML = "";
+        pannellumRef.current = window.pannellum.viewer(viewerRef.current, {
+          type: "equirectangular",
+          panorama: imageUrl,
+          autoLoad: true,
+          autoRotate: -2,
+          compass: false,
+          showControls: false,
+          hfov: 100,
+          minHfov: 50,
+          maxHfov: 120,
+        });
+      } catch (e) {
+        console.error("[360viewer] Pannellum init error:", e);
+        if (attempt < 5) setTimeout(() => tryInit(attempt + 1), 300);
+      }
     }
 
-    const run = () => setTimeout(init, 80);
-    if (window.pannellum) run();
-    else document.getElementById("pannellum-js")?.addEventListener("load", run, { once: true });
+    // Aguarda 200ms para o modal estar totalmente pintado
+    const t = setTimeout(() => tryInit(0), 200);
 
     return () => {
+      cancelled = true;
+      clearTimeout(t);
       try { pannellumRef.current?.destroy(); } catch { /* ignorar */ }
       pannellumRef.current = null;
     };
-  }, [currentImage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentImage?.image_url]);
 
   // Fecha com Escape
   useEffect(() => {
