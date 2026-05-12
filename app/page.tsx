@@ -282,7 +282,7 @@ export default async function LandingPage() {
                       {video.show_title !== false && (
                         <span className="video-info-title">{video.title}</span>
                       )}
-                      <span className="video-info-assista">{badge.cta}</span>
+
                       <span className="video-info-cta">
                         VER VÍDEO COMPLETO
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 9, height: 9 }}><path d="M6 3l5 5-5 5" /></svg>
