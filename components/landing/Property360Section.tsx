@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Image360 = {
   id: string;
@@ -18,17 +18,6 @@ type Property360 = {
   property_360_images: Image360[];
 };
 
-declare global {
-  interface Window {
-    pannellum: {
-      viewer: (
-        container: HTMLElement,
-        config: Record<string, unknown>
-      ) => { destroy(): void };
-    };
-  }
-}
-
 export function Property360Section({
   properties,
 }: {
@@ -36,75 +25,6 @@ export function Property360Section({
 }) {
   const [activeProperty, setActiveProperty] = useState<Property360 | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const pannellumRef = useRef<{ destroy(): void } | null>(null);
-
-  // Carrega Pannellum CSS + JS do CDN uma vez
-  useEffect(() => {
-    if (!document.getElementById("pannellum-css")) {
-      const link = document.createElement("link");
-      link.id = "pannellum-css";
-      link.rel = "stylesheet";
-      link.href = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css";
-      document.head.appendChild(link);
-    }
-    if (!document.getElementById("pannellum-js")) {
-      const script = document.createElement("script");
-      script.id = "pannellum-js";
-      script.src = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js";
-      document.head.appendChild(script);
-    }
-  }, []);
-
-  const currentImage = activeProperty?.property_360_images?.[activeIdx];
-
-  // Inicia/atualiza o viewer quando a imagem muda — com retry automático
-  useEffect(() => {
-    if (!currentImage?.image_url) return;
-
-    let cancelled = false;
-    const imageUrl = currentImage.image_url;
-
-    // Destrói instância anterior de forma segura
-    try { pannellumRef.current?.destroy(); } catch { /* ignorar */ }
-    pannellumRef.current = null;
-    if (viewerRef.current) viewerRef.current.innerHTML = "";
-
-    function tryInit(attempt: number) {
-      if (cancelled) return;
-      if (!viewerRef.current) { if (attempt < 20) setTimeout(() => tryInit(attempt + 1), 100); return; }
-      if (!window.pannellum)  { if (attempt < 20) setTimeout(() => tryInit(attempt + 1), 100); return; }
-
-      try {
-        viewerRef.current.innerHTML = "";
-        pannellumRef.current = window.pannellum.viewer(viewerRef.current, {
-          type: "equirectangular",
-          panorama: imageUrl,
-          autoLoad: true,
-          autoRotate: -2,
-          compass: false,
-          showControls: false,
-          hfov: 100,
-          minHfov: 50,
-          maxHfov: 120,
-        });
-      } catch (e) {
-        console.error("[360viewer] Pannellum init error:", e);
-        if (attempt < 5) setTimeout(() => tryInit(attempt + 1), 300);
-      }
-    }
-
-    // Aguarda 200ms para o modal estar totalmente pintado
-    const t = setTimeout(() => tryInit(0), 200);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-      try { pannellumRef.current?.destroy(); } catch { /* ignorar */ }
-      pannellumRef.current = null;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentImage?.image_url]);
 
   // Fecha com Escape
   useEffect(() => {
@@ -115,7 +35,9 @@ export function Property360Section({
   }, []);
 
   function open(p: Property360) {
-    const imgs = [...(p.property_360_images ?? [])].sort((a, b) => a.position - b.position);
+    const imgs = [...(p.property_360_images ?? [])].sort(
+      (a, b) => a.position - b.position
+    );
     if (imgs.length > 0) {
       setActiveIdx(0);
       setActiveProperty({ ...p, property_360_images: imgs });
@@ -125,15 +47,11 @@ export function Property360Section({
   }
 
   function close() {
-    try { pannellumRef.current?.destroy(); } catch { /* ignorar */ }
-    pannellumRef.current = null;
     setActiveProperty(null);
     setActiveIdx(0);
   }
 
-  function switchImage(idx: number) {
-    setActiveIdx(idx);
-  }
+  const currentImage = activeProperty?.property_360_images?.[activeIdx];
 
   return (
     <>
@@ -154,16 +72,25 @@ export function Property360Section({
                 )}
                 <div className="video-card-overlay" />
 
+                {/* Badge 360° — canto superior esquerdo */}
                 <div className="p360-badge"><span>360°</span></div>
 
+                {/* Contador de ambientes — canto superior direito */}
                 {count > 1 && (
                   <div className="p360-count"><span>{count} ambientes</span></div>
                 )}
 
+                {/* Ícone central */}
                 <div className="p360-icon-btn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-                    <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9" />
+                  <svg
+                    viewBox="0 0 24 24" fill="none" stroke="white"
+                    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ width: 18, height: 18 }}
+                  >
+                    <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3
+                             m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9
+                             m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9
+                             m-9 9a9 9 0 0 1 9-9" />
                   </svg>
                 </div>
 
@@ -177,8 +104,11 @@ export function Property360Section({
                       : count === 1
                       ? "VER EM 360°"
                       : "VER IMÓVEL"}
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"
-                      strokeLinecap="round" strokeLinejoin="round" style={{ width: 9, height: 9 }}>
+                    <svg
+                      viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ width: 9, height: 9 }}
+                    >
                       <path d="M6 3l5 5-5 5" />
                     </svg>
                   </span>
@@ -190,9 +120,12 @@ export function Property360Section({
           {/* Placeholders para garantir overflow */}
           {[1, 2, 3].map((i) => (
             <div key={i} className="video-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"
-                strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" />
+              <svg
+                viewBox="0 0 24 24" fill="none" stroke="white"
+                strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v8M8 12h8" />
               </svg>
               <span>Em breve</span>
             </div>
@@ -201,7 +134,7 @@ export function Property360Section({
       </div>
 
       {/* Modal viewer */}
-      {activeProperty && (
+      {activeProperty && currentImage && (
         <div className="p360-modal" onClick={close}>
           <div className="p360-modal-inner" onClick={(e) => e.stopPropagation()}>
 
@@ -223,8 +156,11 @@ export function Property360Section({
                   </a>
                 )}
                 <button onClick={close} className="p360-modal-close" aria-label="Fechar">
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2"
-                    strokeLinecap="round" style={{ width: 11, height: 11 }}>
+                  <svg
+                    viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                    strokeWidth="2.2" strokeLinecap="round"
+                    style={{ width: 11, height: 11 }}
+                  >
                     <path d="M2 2l12 12M14 2L2 14" />
                   </svg>
                   <span>Fechar</span>
@@ -232,8 +168,14 @@ export function Property360Section({
               </div>
             </div>
 
-            {/* Viewer Pannellum */}
-            <div ref={viewerRef} className="p360-viewer" />
+            {/* Viewer — iframe aponta para /viewer360.html */}
+            <iframe
+              key={currentImage.image_url}
+              src={`/viewer360.html?url=${encodeURIComponent(currentImage.image_url)}`}
+              className="p360-viewer"
+              allow="fullscreen"
+              title={currentImage.label || activeProperty.title}
+            />
 
             {/* Navegação entre ambientes */}
             {activeProperty.property_360_images.length > 1 && (
@@ -241,7 +183,7 @@ export function Property360Section({
                 {activeProperty.property_360_images.map((img, idx) => (
                   <button
                     key={img.id}
-                    onClick={() => switchImage(idx)}
+                    onClick={() => setActiveIdx(idx)}
                     className={`p360-nav-btn${idx === activeIdx ? " p360-nav-btn--active" : ""}`}
                   >
                     <span className="p360-nav-num">{idx + 1}</span>
