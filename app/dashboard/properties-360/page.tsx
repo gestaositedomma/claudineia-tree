@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Upload, X, RotateCw, ImageIcon, ArrowLeft, Trash2 } from "lucide-react";
 import { Property360List } from "@/components/dashboard/Property360List";
+import imageCompression from "browser-image-compression";
 
 type Property360Row = {
   id: string;
@@ -56,6 +57,9 @@ export default function Properties360Page() {
   const [newImageLabel, setNewImageLabel] = useState("");
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImageName, setNewImageName] = useState<string | null>(null);
+  const [newImageOriginalSize, setNewImageOriginalSize] = useState<number>(0);
+  const [newImageCompressedSize, setNewImageCompressedSize] = useState<number>(0);
+  const [compressing, setCompressing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState("");
   const img360Ref = useRef<HTMLInputElement>(null);
@@ -172,15 +176,44 @@ export default function Properties360Page() {
   }
 
   // ── Gerenciamento de fotos 360° ────────────────────────────────────────────
-  function handleImage360(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImage360(e: React.ChangeEvent<HTMLInputElement>) {
     setImageError("");
     const file = e.target.files?.[0];
     if (!file) return;
     const allowed = ["image/jpeg", "image/png"];
     if (!allowed.includes(file.type)) { setImageError("Use JPEG ou PNG."); return; }
-    if (file.size > 52428800) { setImageError("Arquivo muito grande. Limite: 50 MB."); return; }
-    setNewImageFile(file);
+    if (file.size > 104857600) { setImageError("Arquivo muito grande. Limite: 100 MB."); return; }
+
+    const originalMB = file.size / 1048576;
+    setNewImageOriginalSize(originalMB);
+    setCompressing(true);
     setNewImageName(file.name);
+
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 4,
+        maxWidthOrHeight: 4096,
+        useWebWorker: true,
+        fileType: "image/jpeg",
+        initialQuality: 0.85,
+        onProgress: () => {},
+      });
+
+      const compressedMB = compressed.size / 1048576;
+      setNewImageCompressedSize(compressedMB);
+
+      // Garante que o nome do arquivo comprimido seja .jpg
+      const compressedFile = new File([compressed], file.name.replace(/\.[^.]+$/, ".jpg"), {
+        type: "image/jpeg",
+      });
+      setNewImageFile(compressedFile);
+    } catch {
+      // Se falhar a compressão, usa o original
+      setNewImageFile(file);
+      setNewImageCompressedSize(originalMB);
+    } finally {
+      setCompressing(false);
+    }
   }
 
   async function addImage() {
@@ -194,12 +227,11 @@ export default function Properties360Page() {
       .replace(/[^a-z0-9\s-]/gi, "")
       .replace(/\s+/g, "-")
       .toLowerCase();
-    const ext = newImageFile.type === "image/jpeg" ? "jpg" : "png";
-    const path = `${managingId}/${Date.now()}-${safeName}.${ext}`;
+    const path = `${managingId}/${Date.now()}-${safeName}.jpg`;
 
     const { error: upErr } = await supabase.storage
       .from("images-360")
-      .upload(path, newImageFile, { contentType: newImageFile.type });
+      .upload(path, newImageFile, { contentType: "image/jpeg" });
     if (upErr) { setImageError("Erro ao enviar: " + upErr.message); setUploadingImage(false); return; }
 
     const { data } = supabase.storage.from("images-360").getPublicUrl(path);
@@ -338,13 +370,30 @@ export default function Properties360Page() {
                 </Label>
                 {newImageName ? (
                   <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                    <RotateCw size={14} className="text-[#B8966E] flex-shrink-0" />
-                    <span className="text-white/60 text-xs truncate flex-1">{newImageName}</span>
+                    {compressing ? (
+                      <RotateCw size={14} className="text-[#B8966E] flex-shrink-0 animate-spin" />
+                    ) : (
+                      <RotateCw size={14} className="text-[#B8966E] flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-white/60 text-xs truncate block">{newImageName}</span>
+                      {compressing && (
+                        <span className="text-[#B8966E]/70 text-[10px]">Comprimindo imagem...</span>
+                      )}
+                      {!compressing && newImageCompressedSize > 0 && (
+                        <span className="text-emerald-400/70 text-[10px]">
+                          {newImageOriginalSize.toFixed(1)} MB → {newImageCompressedSize.toFixed(1)} MB
+                          {" "}(−{Math.round((1 - newImageCompressedSize / newImageOriginalSize) * 100)}%)
+                        </span>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
                         setNewImageFile(null);
                         setNewImageName(null);
+                        setNewImageOriginalSize(0);
+                        setNewImageCompressedSize(0);
                         if (img360Ref.current) img360Ref.current.value = "";
                       }}
                       className="text-white/30 hover:text-red-400 transition-colors"
@@ -374,10 +423,12 @@ export default function Properties360Page() {
 
               <Button
                 onClick={addImage}
-                disabled={uploadingImage}
+                disabled={uploadingImage || compressing}
                 className="bg-[#B8966E] hover:bg-[#A07D5A] text-white gap-2"
               >
-                {uploadingImage ? (
+                {compressing ? (
+                  <><RotateCw size={14} className="animate-spin" /> Comprimindo...</>
+                ) : uploadingImage ? (
                   <><Upload size={14} className="animate-pulse" /> Enviando...</>
                 ) : (
                   <><Plus size={14} /> Adicionar foto</>
